@@ -1,8 +1,16 @@
 module com.example.soundhub {
     requires javafx.controls;
     requires javafx.fxml;
-    requires java.sql;
+    requires javafx.media;
+    requires transitive javafx.graphics;
+    requires transitive java.sql;
+    requires jbcrypt;
 
-    opens ui to javafx.fxml; // package avec tes contrôleurs FXML
-    exports test; // package avec la classe Main
+    exports ui;
+    exports ui.views;
+    exports ui.components;
+    exports model;
+    exports service;
+    exports utils;
+    exports test;
 }

@@ -1,4 +1,4 @@
 package model;
 
-public class PlaylistTrack {
+public record PlaylistTrack(int playlistId, int trackId) {
 }
