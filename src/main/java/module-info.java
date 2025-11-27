@@ -12,5 +12,5 @@ module com.example.soundhub {
     exports model;
     exports service;
     exports utils;
-    exports test;
+    exports dao;
 }

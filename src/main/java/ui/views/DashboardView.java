@@ -23,6 +23,7 @@ import ui.SoundHubController;
 import ui.components.MiniPlayer;
 import utils.ValidationUtils;
 
+import java.io.File;
 import java.time.Duration;
 import java.util.List;
 import java.util.Optional;
@@ -521,7 +522,27 @@ public class DashboardView extends BorderPane {
         TextField durationField = new TextField();
         durationField.setPromptText("Durée (mm:ss ou minutes)");
         TextField fileField = new TextField();
-        fileField.setPromptText("Chemin vers le fichier audio");
+        fileField.setPromptText("Aucun fichier sélectionné");
+        fileField.setEditable(false);
+        
+        Button browseButton = new Button("Parcourir...");
+        browseButton.setOnAction(e -> {
+            File selectedFile = utils.FileUtils.selectAudioFile(dialog.getDialogPane().getScene().getWindow());
+            if (selectedFile != null) {
+                fileField.setText(selectedFile.getAbsolutePath());
+                fileField.setUserData(selectedFile); // Stocker le fichier pour plus tard
+                
+                // Auto-remplir le titre si vide
+                if (titleField.getText().isEmpty()) {
+                    String fileName = selectedFile.getName();
+                    String titleFromFile = fileName.substring(0, fileName.lastIndexOf('.'));
+                    titleField.setText(titleFromFile);
+                }
+            }
+        });
+        
+        HBox fileRow = new HBox(5, fileField, browseButton);
+        HBox.setHgrow(fileField, Priority.ALWAYS);
 
         GridPane grid = new GridPane();
         grid.setHgap(10);
@@ -529,25 +550,43 @@ public class DashboardView extends BorderPane {
         grid.addRow(0, new Label("Titre"), titleField);
         grid.addRow(1, new Label("Album"), albumField);
         grid.addRow(2, new Label("Durée"), durationField);
-        grid.addRow(3, new Label("Fichier"), fileField);
+        grid.addRow(3, new Label("Fichier"), fileRow);
         dialog.getDialogPane().setContent(grid);
 
         dialog.setResultConverter(buttonType -> {
             if (buttonType == saveButton) {
-                return new TrackFormData(titleField.getText(), albumField.getText(), durationField.getText(), fileField.getText());
+                File selectedFile = (File) fileField.getUserData();
+                String filePath = selectedFile != null ? selectedFile.getAbsolutePath() : "";
+                return new TrackFormData(titleField.getText(), albumField.getText(), durationField.getText(), filePath);
             }
             return null;
         });
 
         dialog.showAndWait().ifPresent(data -> {
             try {
+                // Valider les données
+                if (data.title().trim().isEmpty()) {
+                    throw new IllegalArgumentException("Le titre est requis.");
+                }
+                if (data.filePath().trim().isEmpty()) {
+                    throw new IllegalArgumentException("Veuillez sélectionner un fichier audio.");
+                }
+                
                 Duration duration = ValidationUtils.parseDuration(data.duration());
-                controller.getTrackService().submitTrack(currentUser, data.title(), data.album(), duration, data.filePath());
+                
+                // Copier le fichier dans le dossier media
+                File sourceFile = new File(data.filePath());
+                String mediaPath = utils.FileUtils.copyAudioFileToMedia(sourceFile);
+                
+                // Soumettre le track avec le nouveau chemin
+                controller.getTrackService().submitTrack(currentUser, data.title(), data.album(), duration, mediaPath);
                 refreshTrackFilters();
-                Alert alert = new Alert(Alert.AlertType.INFORMATION, "Track soumis pour validation.");
+                
+                Alert alert = new Alert(Alert.AlertType.INFORMATION, 
+                    "Track '" + data.title() + "' soumis pour validation.\nFichier copié vers: " + mediaPath);
                 alert.showAndWait();
-            } catch (RuntimeException ex) {
-                Alert alert = new Alert(Alert.AlertType.ERROR, ex.getMessage());
+            } catch (Exception ex) {
+                Alert alert = new Alert(Alert.AlertType.ERROR, "Erreur: " + ex.getMessage());
                 alert.showAndWait();
             }
         });

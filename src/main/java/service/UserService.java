@@ -1,5 +1,6 @@
 package service;
 
+import dao.UserDAO;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import model.Role;
@@ -12,24 +13,32 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Objects;
 import java.util.Optional;
-import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 
 public class UserService {
 
+    private final UserDAO userDAO;
     private final ObservableList<User> users = FXCollections.observableArrayList();
-    private final AtomicInteger idSequence = new AtomicInteger(1);
 
     public UserService() {
-        seed();
+        this.userDAO = new UserDAO();
+        loadUsers();
+        seedIfEmpty();
     }
 
-    private void seed() {
-        addUser("superadmin", "super@soundhub.local", "Super#2024", Role.SUPER_ADMIN, UserStatus.ACTIVE);
-        addUser("clara-admin", "clara@soundhub.local", "Admin#2024", Role.ADMIN, UserStatus.ACTIVE);
-        addUser("marco", "marco@soundhub.local", "User#2024", Role.USER, UserStatus.ACTIVE);
-        addUser("alice", "alice@soundhub.local", "User#2024", Role.USER, UserStatus.ACTIVE);
-        addUser("pendingUser", "pending@soundhub.local", "User#2024", Role.USER, UserStatus.PENDING);
+    private void loadUsers() {
+        users.clear();
+        users.addAll(userDAO.findAll());
+    }
+
+    private void seedIfEmpty() {
+        if (users.isEmpty()) {
+            addUser("superadmin", "super@soundhub.local", "Super#2024", Role.SUPER_ADMIN, UserStatus.ACTIVE);
+            addUser("clara-admin", "clara@soundhub.local", "Admin#2024", Role.ADMIN, UserStatus.ACTIVE);
+            addUser("marco", "marco@soundhub.local", "User#2024", Role.USER, UserStatus.ACTIVE);
+            addUser("alice", "alice@soundhub.local", "User#2024", Role.USER, UserStatus.ACTIVE);
+            addUser("pendingUser", "pending@soundhub.local", "User#2024", Role.USER, UserStatus.PENDING);
+        }
     }
 
     private User addUser(String username, String email, String rawPassword, Role role, UserStatus status) {
@@ -37,9 +46,10 @@ public class UserService {
             throw new IllegalArgumentException("Email invalide");
         }
         String passwordHash = HashUtils.hashPassword(rawPassword);
-        User user = new User(idSequence.getAndIncrement(), username, email, passwordHash, role, status);
-        users.add(user);
-        return user;
+        User user = new User(0, username, email, passwordHash, role, status);
+        User savedUser = userDAO.save(user);
+        users.add(savedUser);
+        return savedUser;
     }
 
     public User registerUser(String username, String email, String password) {
@@ -51,17 +61,14 @@ public class UserService {
     }
 
     private void ensureUnique(String username, String email) {
-        Optional<User> usernameClash = users.stream()
-                .filter(u -> u.getUsername().equalsIgnoreCase(username))
-                .findFirst();
-        Optional<User> emailClash = users.stream()
-                .filter(u -> u.getEmail().equalsIgnoreCase(email))
-                .findFirst();
-        if (usernameClash.isPresent()) {
-            throw new IllegalArgumentException("Ce nom d'utilisateur est déjà pris.");
-        }
-        if (emailClash.isPresent()) {
+        // Vérifier si l'email existe déjà
+        if (userDAO.findByEmailOrUsername(email).isPresent()) {
             throw new IllegalArgumentException("Cet email est déjà utilisé.");
+        }
+
+        // Vérifier si le nom d'utilisateur existe déjà
+        if (userDAO.findByEmailOrUsername(username).isPresent()) {
+            throw new IllegalArgumentException("Ce nom d'utilisateur est déjà pris.");
         }
     }
 
@@ -69,9 +76,7 @@ public class UserService {
         ValidationUtils.require(ValidationUtils.isNotBlank(login), "Identifiant requis.");
         ValidationUtils.require(ValidationUtils.isNotBlank(password), "Mot de passe requis.");
 
-        User user = users.stream()
-                .filter(u -> u.getUsername().equalsIgnoreCase(login) || u.getEmail().equalsIgnoreCase(login))
-                .findFirst()
+        User user = userDAO.findByEmailOrUsername(login)
                 .orElseThrow(() -> new IllegalArgumentException("Utilisateur introuvable."));
 
         if (!HashUtils.matches(password, user.getPasswordHash())) {
@@ -86,11 +91,15 @@ public class UserService {
     public void updateStatus(User user, UserStatus status) {
         Objects.requireNonNull(user, "Utilisateur requis");
         user.setStatus(status);
+        userDAO.save(user);
+        loadUsers(); // Recharger la liste
     }
 
     public void updateRole(User user, Role role) {
         Objects.requireNonNull(user, "Utilisateur requis");
         user.setRole(role);
+        userDAO.save(user);
+        loadUsers(); // Recharger la liste
     }
 
     public ObservableList<User> getUsers() {
