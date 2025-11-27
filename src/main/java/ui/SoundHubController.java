@@ -7,6 +7,7 @@ import service.FavoriteService;
 import service.PlaylistService;
 import service.TrackService;
 import service.UserService;
+import dao.*;
 
 public class SoundHubController {
 
@@ -20,7 +21,10 @@ public class SoundHubController {
         this.userService = new UserService();
         this.trackService = new TrackService(userService);
         this.playlistService = new PlaylistService(trackService, userService);
-        this.favoriteService = new FavoriteService(trackService, userService);
+        UserDAO userDAO = new UserDAO();
+        TrackDAO trackDAO = new TrackDAO(userDAO);
+        FavoriteDAO favoriteDAO = new FavoriteDAO(userDAO, trackDAO);
+        this.favoriteService = new FavoriteService(favoriteDAO);
     }
 
     public LoginResult login(String login, String password) {

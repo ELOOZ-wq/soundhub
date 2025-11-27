@@ -11,8 +11,12 @@ import javafx.scene.control.Slider;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.VBox;
+import javafx.scene.media.Media;
+import javafx.scene.media.MediaPlayer;
 import javafx.util.Duration;
 import model.Track;
+
+import java.io.File;
 
 public class MiniPlayer extends VBox {
 
@@ -24,6 +28,8 @@ public class MiniPlayer extends VBox {
     private Timeline timeline;
     private Track currentTrack;
     private double trackDurationSeconds = 0d;
+    private MediaPlayer mediaPlayer;
+
 
     public MiniPlayer() {
         setPadding(new Insets(16));
@@ -39,7 +45,14 @@ public class MiniPlayer extends VBox {
         progressSlider.valueProperty().addListener((obs, oldVal, newVal) ->
                 elapsedLabel.setText(formatSeconds(newVal.doubleValue())));
 
-        volumeSlider.setPrefWidth(150);
+        volumeSlider.valueProperty().addListener((obs, oldVal, newVal) -> {
+            if (mediaPlayer != null) {
+                mediaPlayer.setVolume(newVal.doubleValue() / 100.0);
+
+
+            }
+        });
+
 
         Button playButton = new Button("Lecture");
         playButton.setOnAction(event -> play());
@@ -62,7 +75,7 @@ public class MiniPlayer extends VBox {
     }
 
     public void loadTrack(Track track) {
-        stop();
+        stop(); // stop timeline ou mediaPlayer précédent
         currentTrack = track;
         if (track == null) {
             nowPlaying.setText("Sélectionne un morceau");
@@ -70,33 +83,51 @@ public class MiniPlayer extends VBox {
             totalLabel.setText("00:00");
             return;
         }
-        trackDurationSeconds = track.getDuration().toSeconds();
+
+        Media media = new Media(new File(track.getFilePath()).toURI().toString());
+        mediaPlayer = new MediaPlayer(media);
+
+        mediaPlayer.setOnReady(() -> {
+            trackDurationSeconds = media.getDuration().toSeconds();
+            progressSlider.setDisable(false);
+            progressSlider.setValue(0);
+            progressSlider.setMax(trackDurationSeconds);
+            totalLabel.setText(track.formattedDuration());
+        });
+
         progressSlider.setDisable(false);
         progressSlider.setValue(0);
         progressSlider.setMax(trackDurationSeconds);
+
         nowPlaying.setText(track.getTitle() + " • " + track.getArtistName());
         totalLabel.setText(track.formattedDuration());
         elapsedLabel.setText("00:00");
+
+        mediaPlayer.currentTimeProperty().addListener((obs, oldTime, newTime) -> {
+            progressSlider.setValue(newTime.toSeconds());
+            elapsedLabel.setText(formatSeconds(newTime.toSeconds()));
+        });
     }
 
+
     public void play() {
-        if (currentTrack == null) {
+        if (currentTrack == null || mediaPlayer == null) {
             nowPlaying.setText("Choisis un morceau pour lancer la lecture");
             return;
         }
-        startTimeline();
+        mediaPlayer.play();
     }
 
     public void pause() {
-        if (timeline != null) {
-            timeline.pause();
+        if (mediaPlayer != null) {
+            mediaPlayer.pause();
         }
     }
 
     public void stop() {
-        if (timeline != null) {
-            timeline.stop();
-            timeline = null;
+        if (mediaPlayer != null) {
+            mediaPlayer.stop();
+            mediaPlayer = null;
         }
         if (progressSlider != null) {
             progressSlider.setValue(0);

@@ -93,7 +93,11 @@ public class DashboardView extends BorderPane {
         });
 
         FavoriteService favoriteService = controller.getFavoriteService();
-        favoritesList.setItems(favoriteService.getFavorites(currentUser));
+// Charge initialement les favoris depuis la base
+        favoriteService.loadFavorites(currentUser);
+
+// Lie la ListView au cache pour mise à jour immédiate
+        favoritesList.setItems(favoriteService.getFavoritesCache());
         favoritesList.setCellFactory(list -> new ListCell<>() {
             @Override
             protected void updateItem(Favorite item, boolean empty) {
@@ -336,6 +340,20 @@ public class DashboardView extends BorderPane {
 
         favoritesList.setPrefHeight(160);
 
+        // Lie la ListView au cache pour mise à jour immédiate
+        favoritesList.setItems(controller.getFavoriteService().getFavoritesCache());
+        favoritesList.setCellFactory(list -> new ListCell<>() {
+            @Override
+            protected void updateItem(Favorite item, boolean empty) {
+                super.updateItem(item, empty);
+                if (empty || item == null) {
+                    setText(null);
+                } else {
+                    setText(item.getTrack().getTitle() + " • " + item.getTrack().getArtistName());
+                }
+            }
+        });
+
         Button remove = new Button("Retirer des favoris");
         remove.disableProperty().bind(favoritesList.getSelectionModel().selectedItemProperty().isNull());
         remove.setOnAction(event -> {
@@ -348,6 +366,8 @@ public class DashboardView extends BorderPane {
         card.getChildren().addAll(title, favoritesList, remove);
         return card;
     }
+
+
 
     private Node buildModerationCard() {
         boolean canModerate = currentUser.getRole().canModerateTracks() || currentUser.getRole().canModerateUsers();

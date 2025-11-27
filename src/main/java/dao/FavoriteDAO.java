@@ -61,18 +61,30 @@ public class FavoriteDAO {
     }
 
     public void addFavorite(User user, Track track) {
-        String sql = "INSERT IGNORE INTO favorite (user_id, track_id) VALUES (?, ?)";
-        
+        if (user == null || track == null) {
+            System.out.println("Utilisateur ou track null");
+            return;
+        }
+
+        System.out.println("Tentative d'ajout favori : userId=" + user.getId() + ", trackId=" + track.getId());
+
+        String sql = "INSERT INTO favorite (user_id, track_id) VALUES (?, ?)";
+
         try (Connection conn = DBConnection.getConnection();
              PreparedStatement stmt = conn.prepareStatement(sql)) {
-            
+
             stmt.setInt(1, user.getId());
             stmt.setInt(2, track.getId());
-            stmt.executeUpdate();
+
+            int rows = stmt.executeUpdate();
+            System.out.println("Rows affected: " + rows);
+
         } catch (SQLException e) {
-            throw new RuntimeException("Erreur lors de l'ajout du favori", e);
+            System.err.println("Erreur lors de l'ajout du favori : " + e.getMessage());
+            e.printStackTrace();
         }
     }
+
 
     public void removeFavorite(User user, Track track) {
         String sql = "DELETE FROM favorite WHERE user_id = ? AND track_id = ?";
