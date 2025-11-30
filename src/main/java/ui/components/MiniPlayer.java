@@ -1,8 +1,5 @@
 package ui.components;
 
-import javafx.animation.KeyFrame;
-import javafx.animation.KeyValue;
-import javafx.animation.Timeline;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.control.Button;
@@ -15,6 +12,8 @@ import javafx.scene.media.Media;
 import javafx.scene.media.MediaPlayer;
 import javafx.util.Duration;
 import model.Track;
+import javafx.collections.FXCollections;
+import javafx.collections.ObservableList;
 
 import java.io.File;
 
@@ -25,10 +24,14 @@ public class MiniPlayer extends VBox {
     private final Slider volumeSlider = new Slider(0, 100, 70);
     private final Label elapsedLabel = new Label("00:00");
     private final Label totalLabel = new Label("00:00");
-    private Timeline timeline;
+
     private Track currentTrack;
     private double trackDurationSeconds = 0d;
     private MediaPlayer mediaPlayer;
+
+    // Gestion de la file d'attente (Queue)
+    private ObservableList<Track> queue = FXCollections.observableArrayList();
+    private int currentTrackIndex = -1;
 
 
     public MiniPlayer() {
@@ -41,27 +44,47 @@ public class MiniPlayer extends VBox {
     private void build() {
         nowPlaying.getStyleClass().add("now-playing");
 
-        progressSlider.setDisable(true);
+        // Gère l'affichage du temps écoulé
         progressSlider.valueProperty().addListener((obs, oldVal, newVal) ->
                 elapsedLabel.setText(formatSeconds(newVal.doubleValue())));
 
+        // Gère l'avance/retour rapide (Seeking)
+        progressSlider.setOnMousePressed(event -> {
+            if (mediaPlayer != null) {
+                mediaPlayer.pause(); // Pause pendant le drag
+            }
+        });
+
+        progressSlider.setOnMouseReleased(event -> {
+            if (mediaPlayer != null) {
+                double newTime = progressSlider.getValue();
+                mediaPlayer.seek(Duration.seconds(newTime));
+                mediaPlayer.play(); // Reprendre la lecture
+            }
+        });
+
+        // Gère le volume
         volumeSlider.valueProperty().addListener((obs, oldVal, newVal) -> {
             if (mediaPlayer != null) {
                 mediaPlayer.setVolume(newVal.doubleValue() / 100.0);
-
-
             }
         });
 
 
+        // Boutons de contrôle
+        Button prevButton = new Button("<<");
+        prevButton.setOnAction(event -> playPrevious());
         Button playButton = new Button("Lecture");
         playButton.setOnAction(event -> play());
         Button pauseButton = new Button("Pause");
         pauseButton.setOnAction(event -> pause());
+        Button nextButton = new Button(">>");
+        nextButton.setOnAction(event -> playNext());
         Button stopButton = new Button("Stop");
         stopButton.setOnAction(event -> stop());
 
-        HBox actions = new HBox(10, playButton, pauseButton, stopButton);
+        // HBox des contrôles
+        HBox actions = new HBox(10, prevButton, playButton, pauseButton, nextButton, stopButton);
         actions.setAlignment(Pos.CENTER_LEFT);
 
         HBox progressRow = new HBox(10, elapsedLabel, progressSlider, totalLabel);
@@ -74,34 +97,42 @@ public class MiniPlayer extends VBox {
         getChildren().addAll(nowPlaying, progressRow, actions, volumeRow);
     }
 
+
     public void loadTrack(Track track) {
-        stop(); // stop timeline ou mediaPlayer précédent
-        currentTrack = track;
-        if (track == null) {
-            nowPlaying.setText("Sélectionne un morceau");
-            progressSlider.setDisable(true);
-            totalLabel.setText("00:00");
-            return;
+        loadQueue(FXCollections.observableArrayList(track), 0);
+    }
+
+
+
+    public void loadQueue(ObservableList<Track> tracks, int startIndex) {
+        // Arrête proprement l'ancien MediaPlayer
+        if (mediaPlayer != null) {
+            mediaPlayer.stop();
+            mediaPlayer.dispose();
         }
 
-        Media media = new Media(new File(track.getFilePath()).toURI().toString());
+        this.queue = FXCollections.observableArrayList(tracks);
+        this.currentTrackIndex = startIndex;
+
+        if (queue.isEmpty()) return;
+
+        currentTrack = queue.get(currentTrackIndex);
+        nowPlaying.setText(currentTrack.getTitle() + " • " + currentTrack.getArtistName());
+
+        File file = new File(currentTrack.getFilePath());
+        Media media = new Media(file.toURI().toString());
         mediaPlayer = new MediaPlayer(media);
 
+        mediaPlayer.setVolume(volumeSlider.getValue() / 100.0);
+
         mediaPlayer.setOnReady(() -> {
-            trackDurationSeconds = media.getDuration().toSeconds();
-            progressSlider.setDisable(false);
-            progressSlider.setValue(0);
-            progressSlider.setMax(trackDurationSeconds);
-            totalLabel.setText(track.formattedDuration());
+            double duration = media.getDuration().toSeconds();
+            progressSlider.setMax(duration);
+            totalLabel.setText(formatSeconds(duration));
+            mediaPlayer.play();  // <-- LECTURE AUTOMATIQUE ICI
         });
 
-        progressSlider.setDisable(false);
-        progressSlider.setValue(0);
-        progressSlider.setMax(trackDurationSeconds);
-
-        nowPlaying.setText(track.getTitle() + " • " + track.getArtistName());
-        totalLabel.setText(track.formattedDuration());
-        elapsedLabel.setText("00:00");
+        mediaPlayer.setOnEndOfMedia(this::playNext);
 
         mediaPlayer.currentTimeProperty().addListener((obs, oldTime, newTime) -> {
             progressSlider.setValue(newTime.toSeconds());
@@ -109,13 +140,21 @@ public class MiniPlayer extends VBox {
         });
     }
 
-
     public void play() {
         if (currentTrack == null || mediaPlayer == null) {
             nowPlaying.setText("Choisis un morceau pour lancer la lecture");
             return;
         }
-        mediaPlayer.play();
+
+        // Si le lecteur est prêt (PAUSED ou READY après un load), on joue.
+        if (mediaPlayer.getStatus() == MediaPlayer.Status.READY || mediaPlayer.getStatus() == MediaPlayer.Status.PAUSED) {
+            mediaPlayer.play();
+        } else if (mediaPlayer.getStatus() == MediaPlayer.Status.STOPPED) {
+            mediaPlayer.play();
+        } else {
+            // Si le média est en cours de chargement (UNKNOWN), on utilise setOnReady pour s'assurer du lancement
+            mediaPlayer.setOnReady(() -> mediaPlayer.play());
+        }
     }
 
     public void pause() {
@@ -127,29 +166,38 @@ public class MiniPlayer extends VBox {
     public void stop() {
         if (mediaPlayer != null) {
             mediaPlayer.stop();
+            mediaPlayer.dispose();
             mediaPlayer = null;
         }
-        if (progressSlider != null) {
-            progressSlider.setValue(0);
-        }
+
+        progressSlider.setValue(0);
         elapsedLabel.setText("00:00");
+
+        currentTrackIndex = -1;
     }
 
-    private void startTimeline() {
-        if (trackDurationSeconds <= 0) {
-            return;
+
+
+    public void playNext() {
+        if (currentTrackIndex < queue.size() - 1) {
+            currentTrackIndex++;
+            loadQueue(queue, currentTrackIndex);
+        } else {
+            stop();
         }
-        if (timeline != null) {
-            timeline.stop();
-        }
-        timeline = new Timeline(
-                new KeyFrame(Duration.ZERO, new KeyValue(progressSlider.valueProperty(), 0)),
-                new KeyFrame(Duration.seconds(trackDurationSeconds),
-                        new KeyValue(progressSlider.valueProperty(), trackDurationSeconds))
-        );
-        timeline.setOnFinished(event -> stop());
-        timeline.play();
     }
+
+
+
+    public void playPrevious() {
+        if (currentTrackIndex > 0) {
+            currentTrackIndex--;
+            loadQueue(queue, currentTrackIndex);
+        } else if (mediaPlayer != null) {
+            mediaPlayer.seek(Duration.ZERO); // redémarrer la piste actuelle
+        }
+    }
+
 
     private String formatSeconds(double seconds) {
         long totalSeconds = Math.round(seconds);
@@ -158,4 +206,3 @@ public class MiniPlayer extends VBox {
         return String.format("%02d:%02d", minutes, remain);
     }
 }
-

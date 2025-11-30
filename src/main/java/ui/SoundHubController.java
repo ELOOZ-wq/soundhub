@@ -7,7 +7,7 @@ import service.FavoriteService;
 import service.PlaylistService;
 import service.TrackService;
 import service.UserService;
-import dao.*;
+import dao.*; // Import nécessaire pour les classes DAO
 
 public class SoundHubController {
 
@@ -18,12 +18,17 @@ public class SoundHubController {
     private final ObjectProperty<User> currentUser = new SimpleObjectProperty<>();
 
     public SoundHubController() {
-        this.userService = new UserService();
-        this.trackService = new TrackService(userService);
-        this.playlistService = new PlaylistService(trackService, userService);
+        // Initialisation des DAOs nécessaires pour les dépendances
         UserDAO userDAO = new UserDAO();
         TrackDAO trackDAO = new TrackDAO(userDAO);
+        PlaylistDAO playlistDAO = new PlaylistDAO(userDAO, trackDAO); // Instanciation du PlaylistDAO
         FavoriteDAO favoriteDAO = new FavoriteDAO(userDAO, trackDAO);
+
+        // Initialisation des Services
+        this.userService = new UserService();
+        this.trackService = new TrackService(userService);
+        // MODIFICATION ICI: Passage de l'instance de PlaylistDAO
+        this.playlistService = new PlaylistService(playlistDAO);
         this.favoriteService = new FavoriteService(favoriteDAO);
     }
 
@@ -31,11 +36,18 @@ public class SoundHubController {
         try {
             User user = userService.authenticate(login, password);
             currentUser.set(user);
+
+            // IMPORTANT : Charger les playlists et favoris APRES le login
+            favoriteService.loadFavorites(user);
+            playlistService.getPlaylists(user); // Force le chargement/mise en cache des playlists
+
             return new LoginResult(true, user, "Connexion réussie.");
         } catch (RuntimeException ex) {
             return new LoginResult(false, null, ex.getMessage());
         }
     }
+
+    // ... (Reste de la classe inchangé) ...
 
     public LoginResult register(String username, String email, String password) {
         try {
@@ -74,4 +86,3 @@ public class SoundHubController {
     public record LoginResult(boolean success, User user, String message) {
     }
 }
-

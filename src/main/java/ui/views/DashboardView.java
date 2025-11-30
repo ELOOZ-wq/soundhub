@@ -49,6 +49,14 @@ public class DashboardView extends BorderPane {
     private final ListView<Playlist> playlistList = new ListView<>();
     private final ListView<Track> playlistTracks = new ListView<>();
     private final ListView<Favorite> favoritesList = new ListView<>();
+    // Dans ui.views.DashboardView.java (Champs de la classe)
+// ...
+    private final FlowPane trendingAlbumsPane = new FlowPane(16, 16); // Existant
+    // Nouvelle zone dédiée aux morceaux d'album
+    private final ListView<Track> selectedAlbumTracksList = new ListView<>();
+    private final VBox trackDisplayContainer = new VBox(10);
+    private final Label albumTracksTitle = new Label("Morceaux de l'album...");
+// ...
 
     private String currentQuery = "";
     private TrackStatus selectedStatus = null;
@@ -200,8 +208,7 @@ public class DashboardView extends BorderPane {
         content.setPadding(new Insets(30));
         content.getChildren().add(buildTagRow());
         content.getChildren().add(buildSection("Radio populaire", "Tout afficher", radioCarousel));
-        content.getChildren().add(buildSection("Albums & singles populaires", null, albumCarousel));
-        content.getChildren().add(buildPlaylistManagerCard());
+        content.getChildren().add(buildSection("Albums & singles populaires", null, buildAlbumsSectionContent()));        content.getChildren().add(buildPlaylistManagerCard());
         content.getChildren().add(buildFavoritesCard());
         Node moderation = buildModerationCard();
         if (moderation != null) {
@@ -330,6 +337,66 @@ public class DashboardView extends BorderPane {
 
         card.getChildren().addAll(title, lists, actions);
         return card;
+    }
+
+    private ListCell<Track> createAlbumTrackCell() {
+        return new ListCell<Track>() {
+            @Override
+            protected void updateItem(Track track, boolean empty) {
+                super.updateItem(track, empty);
+                if (empty || track == null) {
+                    setText(null);
+                    setGraphic(null);
+                } else {
+                    Label titleLabel = new Label(track.getTitle());
+                    Label durationLabel = new Label(track.formattedDuration());
+
+                    // HBox avec un espaceur pour aligner la durée à droite
+                    HBox hbox = new HBox(10, titleLabel, new Region(), durationLabel);
+                    HBox.setHgrow(hbox.getChildren().get(1), Priority.ALWAYS);
+                    hbox.setAlignment(Pos.CENTER_LEFT);
+
+                    setGraphic(hbox);
+                    setText(null);
+                }
+            }
+        };
+    }
+    // Dans ui.views.DashboardView.java (Nouvelle méthode)
+
+    private Node buildAlbumsSectionContent() {
+        // 1. Configuration de la liste des morceaux (à droite)
+        albumTracksTitle.getStyleClass().add("section-subtitle");
+
+        // Configuration de la ListView
+        selectedAlbumTracksList.setPlaceholder(new Label("Sélectionne un album pour voir ses morceaux"));
+        selectedAlbumTracksList.setCellFactory(list -> createAlbumTrackCell());
+        selectedAlbumTracksList.setOnMouseClicked(event -> {
+            if (event.getClickCount() == 2 && selectedAlbumTracksList.getSelectionModel().getSelectedItem() != null) {
+                Track track = selectedAlbumTracksList.getSelectionModel().getSelectedItem();
+                miniPlayer.loadTrack(track);
+                miniPlayer.play();
+            }
+        });
+
+        // Conteneur de la zone des morceaux (Titre + Liste)
+        trackDisplayContainer.getChildren().addAll(albumTracksTitle, selectedAlbumTracksList);
+        trackDisplayContainer.setMinWidth(300);
+        trackDisplayContainer.setPrefWidth(300);
+        trackDisplayContainer.setVisible(false); // Cacher par défaut
+
+        // 2. Encapsuler l'albumCarousel dans un ScrollPane pour le fixer
+        ScrollPane albumCardsScrollPane = new ScrollPane(albumCarousel);
+        albumCardsScrollPane.setFitToWidth(true);
+        albumCardsScrollPane.setPrefHeight(250);
+        albumCardsScrollPane.getStyleClass().add("transparent-scrollpane");
+
+        // 3. Conteneur horizontal (Albums à gauche, Liste des morceaux à droite)
+        HBox contentRow = new HBox(20);
+        HBox.setHgrow(albumCardsScrollPane, Priority.ALWAYS);
+        contentRow.getChildren().addAll(albumCardsScrollPane, trackDisplayContainer);
+
+        return contentRow;
     }
 
     private Node buildFavoritesCard() {
@@ -688,9 +755,24 @@ public class DashboardView extends BorderPane {
             MenuItem favorite = new MenuItem(controller.getFavoriteService().isFavorite(currentUser, track)
                     ? "Retirer des favoris" : "Ajouter aux favoris");
             favorite.setOnAction(e -> controller.getFavoriteService().toggleFavorite(currentUser, track));
-            MenuItem addToPlaylist = new MenuItem("Ajouter à une playlist");
-            addToPlaylist.setOnAction(e -> addTrackToPlaylist(track));
+            // Sous-menu "Ajouter à une playlist"
+            Menu addToPlaylist = new Menu("Ajouter à une playlist");
+
+            ObservableList<Playlist> playlists =         controller.getPlaylistService().getPlaylists(currentUser);
+
+
+// Crée un MenuItem pour chaque playlist
+            for (Playlist p : playlists) {
+                MenuItem playlistItem = new MenuItem(p.getName());
+                playlistItem.setOnAction(e -> {
+                    controller.getPlaylistService().addTrack(p, track);
+                    System.out.println("Ajouté à la playlist : " + p.getName());
+                });
+                addToPlaylist.getItems().add(playlistItem);
+            }
+
             menu.getItems().addAll(play, favorite, addToPlaylist);
+
             menu.show(card, event.getScreenX(), event.getScreenY());
         });
         return card;
@@ -715,18 +797,98 @@ public class DashboardView extends BorderPane {
         return column;
     }
 
+    // Dans DashboardView.java (Modification de la méthode refreshCarousels)
+
     private void refreshCarousels() {
-        List<Track> tracks = filteredTracks.stream().collect(Collectors.toList());
+        // 1. Tracks filtrés pour le carrousel "Radio populaire" (par titres)
+        List<Track> tracks = filteredTracks.stream().toList();
         radioCarousel.getChildren().setAll(tracks.stream()
                 .limit(5)
                 .map(this::createTrackCard)
                 .toList());
-        albumCarousel.getChildren().setAll(tracks.stream()
-                .skip(5)
-                .limit(8)
-                .map(this::createTrackCard)
+
+        // 2. Albums populaires pour le carrousel "Albums & singles populaires"
+        List<Album> popularAlbums = controller.getTrackService().getPopularAlbums(); // NOUVEAU
+
+        albumCarousel.getChildren().setAll(popularAlbums.stream()
+                .map(this::createAlbumCard) // NOUVEAU: Utilise une méthode spécifique pour les albums
                 .toList());
     }
+
+
+    // Dans ui.views.DashboardView.java
+
+    private Node createAlbumCard(Album album) {
+        VBox card = new VBox(10);
+        card.getStyleClass().add("music-card");
+        card.setPrefWidth(180);
+
+        // --- 1. Création de la couverture ---
+        Rectangle cover = new Rectangle(180, 180);
+        cover.setArcWidth(30);
+        cover.setArcHeight(30);
+
+        if (!album.getTracks().isEmpty()) {
+            cover.setFill(colorForTrack(album.getTracks().getFirst()));
+        } else {
+            cover.setFill(Color.DARKGRAY);
+        }
+
+        // --- 2. Déclaration et configuration du bouton playOverlay ---
+        Button playOverlay = new Button("\u25B6");
+        playOverlay.getStyleClass().add("play-overlay-button");
+
+        // --- 3. Action du bouton Play (Logique de Démarrage Album) ---
+        playOverlay.setOnAction(e -> {
+            if (!album.getTracks().isEmpty()) {
+                // Utilise loadQueue pour démarrer la lecture de l'album entier
+                miniPlayer.loadQueue(album.getTracks(), 0);
+                miniPlayer.play();
+            }
+        });
+
+        // --- 4. Empilement de la couverture et du bouton (StackPane) ---
+        StackPane artwork = new StackPane(cover, playOverlay);
+        artwork.getStyleClass().add("music-cover");
+
+        // --- 5. Labels d'informations ---
+        Label title = new Label(album.getTitle()); // Utilisation de getTitle() corrigée
+        title.getStyleClass().add("music-card-title");
+        title.setWrapText(true);
+
+        String artistName = album.getTracks().isEmpty() ? "Artiste inconnu" : album.getTracks().getFirst().getArtistName();
+        Label artist = new Label(artistName + " (" + album.getTracks().size() + " titres)");
+        artist.getStyleClass().add("music-card-subtitle");
+        artist.setWrapText(true);
+
+        // --- 6. Action du double-clic sur la carte (Logique de Démarrage Album) ---
+        card.setOnMouseClicked(event -> {
+            if (event.getClickCount() == 1) {
+                // Simple clic : Afficher les morceaux de l'album dans la zone dédiée
+
+                // 1. Nettoyage de l'interface et mise à jour du contenu
+                playlistList.getSelectionModel().select(null); // Nettoyer la sélection de Playlist
+                albumTracksTitle.setText("Morceaux de l'album : " + album.getTitle());
+                selectedAlbumTracksList.setItems(album.getTracks());
+
+                // 2. Rendre la zone dédiée visible
+                trackDisplayContainer.setVisible(true);
+
+            } else if (event.getClickCount() == 2) {
+                // Double clic : Lancer la lecture de l'album
+                if (!album.getTracks().isEmpty()) {
+                    miniPlayer.loadQueue(album.getTracks(), 0);
+                    miniPlayer.play();
+                }
+            }
+        });
+
+        // --- 7. Assemblage de la carte ---
+        card.getChildren().addAll(artwork, title, artist);
+
+        return card;
+    }
+
 
     private Button pillButton(String label) {
         Button button = new Button(label);

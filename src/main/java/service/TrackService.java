@@ -4,15 +4,13 @@ import dao.TrackDAO;
 import dao.UserDAO;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
-import model.Role;
-import model.Track;
-import model.TrackStatus;
-import model.User;
+import model.*;
 import utils.ValidationUtils;
 
 import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.stream.Collectors;
 
@@ -102,5 +100,36 @@ public class TrackService {
         return tracks.stream()
                 .filter(t -> status == null || t.getStatus() == status)
                 .collect(Collectors.toList());
+    }
+    public List<Album> getPopularAlbums() {
+        // 1. Filtrer uniquement les tracks APPROUVÉS
+        List<Track> approvedTracks = tracks.stream()
+                .filter(t -> t.getStatus() == TrackStatus.APPROVED)
+                .toList();
+
+        // 2. Regrouper les tracks par Nom d'Album et Artiste.
+        // La clé de la Map sera un regroupement logique de l'album (Artiste + Nom d'Album)
+        Map<String, List<Track>> groupedTracks = approvedTracks.stream()
+                .collect(Collectors.groupingBy(track -> {
+                    String albumName = track.getAlbum() != null && !track.getAlbum().isBlank()
+                            ? track.getAlbum()
+                            : "Singles de " + track.getArtistName(); // Traite les singles
+                    return albumName + "|||" + track.getArtist().getId(); // Utilise l'ID de l'artiste pour l'unicité
+                }));
+
+        // 3. Convertir la Map en liste d'objets Album
+        return groupedTracks.values().stream()
+                .map(trackList -> {
+                    // Récupère les métadonnées de l'album à partir de la première piste
+                    Track representativeTrack = trackList.getFirst();
+                    String albumTitle = representativeTrack.getAlbum() != null && !representativeTrack.getAlbum().isBlank()
+                            ? representativeTrack.getAlbum()
+                            : "Singles de " + representativeTrack.getArtistName();
+
+                    return new Album(albumTitle, representativeTrack.getArtist(), trackList);
+                })
+                .sorted((a1, a2) -> Integer.compare(a2.getTracks().size(), a1.getTracks().size())) // Trie par popularité (nombre de titres)
+                .limit(10) // Limite l'affichage aux 10 premiers (pour le carrousel)
+                .toList();
     }
 }
