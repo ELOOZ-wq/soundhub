@@ -129,7 +129,7 @@ public class MiniPlayer extends VBox {
             double duration = media.getDuration().toSeconds();
             progressSlider.setMax(duration);
             totalLabel.setText(formatSeconds(duration));
-            mediaPlayer.play();  // <-- LECTURE AUTOMATIQUE ICI
+            mediaPlayer.play();
         });
 
         mediaPlayer.setOnEndOfMedia(this::playNext);
@@ -140,21 +140,14 @@ public class MiniPlayer extends VBox {
         });
     }
 
+    // Méthode 'play' simplifiée et corrigée
     public void play() {
-        if (currentTrack == null || mediaPlayer == null) {
+        if (mediaPlayer == null) {
             nowPlaying.setText("Choisis un morceau pour lancer la lecture");
             return;
         }
-
-        // Si le lecteur est prêt (PAUSED ou READY après un load), on joue.
-        if (mediaPlayer.getStatus() == MediaPlayer.Status.READY || mediaPlayer.getStatus() == MediaPlayer.Status.PAUSED) {
-            mediaPlayer.play();
-        } else if (mediaPlayer.getStatus() == MediaPlayer.Status.STOPPED) {
-            mediaPlayer.play();
-        } else {
-            // Si le média est en cours de chargement (UNKNOWN), on utilise setOnReady pour s'assurer du lancement
-            mediaPlayer.setOnReady(() -> mediaPlayer.play());
-        }
+        // Si le MediaPlayer est chargé, on joue. Le statut UNKNOWN passera à READY puis PLAYING.
+        mediaPlayer.play();
     }
 
     public void pause() {
@@ -204,5 +197,8 @@ public class MiniPlayer extends VBox {
         long minutes = totalSeconds / 60;
         long remain = totalSeconds % 60;
         return String.format("%02d:%02d", minutes, remain);
+    }
+    public MediaPlayer getMediaPlayer() {
+        return mediaPlayer;
     }
 }
