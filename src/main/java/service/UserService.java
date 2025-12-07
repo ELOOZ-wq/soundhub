@@ -28,16 +28,27 @@ public class UserService {
 
     private void loadUsers() {
         users.clear();
-        users.addAll(userDAO.findAll());
+        try {
+            users.addAll(userDAO.findAll());
+        } catch (RuntimeException e) {
+            System.err.println("Erreur de connexion à la base de données: " + e.getMessage());
+            System.err.println("L'application démarre avec une liste d'utilisateurs vide.");
+            // L'application peut démarrer même si la base de données n'est pas disponible
+        }
     }
 
     private void seedIfEmpty() {
         if (users.isEmpty()) {
-            addUser("superadmin", "super@soundhub.local", "Super#2024", Role.SUPER_ADMIN, UserStatus.ACTIVE);
-            addUser("clara-admin", "clara@soundhub.local", "Admin#2024", Role.ADMIN, UserStatus.ACTIVE);
-            addUser("marco", "marco@soundhub.local", "User#2024", Role.USER, UserStatus.ACTIVE);
-            addUser("alice", "alice@soundhub.local", "User#2024", Role.USER, UserStatus.ACTIVE);
-            addUser("pendingUser", "pending@soundhub.local", "User#2024", Role.USER, UserStatus.PENDING);
+            try {
+                addUser("superadmin", "super@soundhub.local", "Super#2024", Role.SUPER_ADMIN, UserStatus.ACTIVE);
+                addUser("clara-admin", "clara@soundhub.local", "Admin#2024", Role.ADMIN, UserStatus.ACTIVE);
+                addUser("marco", "marco@soundhub.local", "User#2024", Role.USER, UserStatus.ACTIVE);
+                addUser("alice", "alice@soundhub.local", "User#2024", Role.USER, UserStatus.ACTIVE);
+                addUser("pendingUser", "pending@soundhub.local", "User#2024", Role.USER, UserStatus.PENDING);
+            } catch (RuntimeException e) {
+                System.err.println("Impossible de créer les utilisateurs par défaut: " + e.getMessage());
+                System.err.println("Assurez-vous que la base de données est accessible et configurée.");
+            }
         }
     }
 

@@ -28,34 +28,44 @@ public class TrackService {
 
     private void loadTracks() {
         tracks.clear();
-        tracks.addAll(trackDAO.findAll());
+        try {
+            tracks.addAll(trackDAO.findAll());
+        } catch (RuntimeException e) {
+            System.err.println("Erreur de connexion à la base de données lors du chargement des tracks: " + e.getMessage());
+            System.err.println("L'application démarre avec une liste de tracks vide.");
+        }
     }
 
     private void seedIfEmpty(UserService userService) {
         if (tracks.isEmpty()) {
-            List<User> artists = userService.getUsers().stream()
-                    .filter(User::isActive)
-                    .filter(user -> user.getRole() != Role.SUPER_ADMIN)
-                    .collect(Collectors.toList());
-            if (artists.isEmpty()) {
-                return;
+            try {
+                List<User> artists = userService.getUsers().stream()
+                        .filter(User::isActive)
+                        .filter(user -> user.getRole() != Role.SUPER_ADMIN)
+                        .collect(Collectors.toList());
+                if (artists.isEmpty()) {
+                    return;
+                }
+                User firstArtist = artists.get(0);
+                User secondArtist = artists.size() > 1 ? artists.get(1) : firstArtist;
+
+                Track track1 = new Track(0, "City Lights", firstArtist,
+                        "Neon Dreams", Duration.ofSeconds(222), "media/city_lights.mp3",
+                        TrackStatus.APPROVED, LocalDateTime.now().minusDays(2));
+                Track track2 = new Track(0, "Orbit", secondArtist,
+                        "Space Walk", Duration.ofSeconds(187), "media/orbit.mp3",
+                        TrackStatus.APPROVED, LocalDateTime.now().minusDays(1));
+                Track track3 = new Track(0, "Slow Dive", firstArtist,
+                        "After Hours", Duration.ofSeconds(250), "media/slow_dive.mp3",
+                        TrackStatus.PENDING, LocalDateTime.now().minusHours(6));
+
+                tracks.add(trackDAO.save(track1));
+                tracks.add(trackDAO.save(track2));
+                tracks.add(trackDAO.save(track3));
+            } catch (RuntimeException e) {
+                System.err.println("Impossible de créer les tracks par défaut: " + e.getMessage());
+                System.err.println("Assurez-vous que la base de données est accessible et configurée.");
             }
-            User firstArtist = artists.get(0);
-            User secondArtist = artists.size() > 1 ? artists.get(1) : firstArtist;
-
-            Track track1 = new Track(0, "City Lights", firstArtist,
-                    "Neon Dreams", Duration.ofSeconds(222), "media/city_lights.mp3",
-                    TrackStatus.APPROVED, LocalDateTime.now().minusDays(2));
-            Track track2 = new Track(0, "Orbit", secondArtist,
-                    "Space Walk", Duration.ofSeconds(187), "media/orbit.mp3",
-                    TrackStatus.APPROVED, LocalDateTime.now().minusDays(1));
-            Track track3 = new Track(0, "Slow Dive", firstArtist,
-                    "After Hours", Duration.ofSeconds(250), "media/slow_dive.mp3",
-                    TrackStatus.PENDING, LocalDateTime.now().minusHours(6));
-
-            tracks.add(trackDAO.save(track1));
-            tracks.add(trackDAO.save(track2));
-            tracks.add(trackDAO.save(track3));
         }
     }
 
