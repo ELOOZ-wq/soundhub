@@ -35,8 +35,8 @@ public class MiniPlayer extends VBox {
 
 
     public MiniPlayer() {
-        setPadding(new Insets(16));
-        setSpacing(12);
+        setPadding(new Insets(8));
+        setSpacing(6);
         getStyleClass().add("mini-player");
         build();
     }
@@ -72,29 +72,61 @@ public class MiniPlayer extends VBox {
 
 
         // Boutons de contrôle
-        Button prevButton = new Button("<<");
+        Button prevButton = new Button("⏮");
+        prevButton.getStyleClass().add("player-control-button");
+        prevButton.getStyleClass().add("prev-button");
         prevButton.setOnAction(event -> playPrevious());
-        Button playButton = new Button("Lecture");
+        
+        Button playButton = new Button("▶");
+        playButton.getStyleClass().add("player-control-button");
+        playButton.getStyleClass().add("play-button");
         playButton.setOnAction(event -> play());
-        Button pauseButton = new Button("Pause");
+        
+        Button pauseButton = new Button("⏸");
+        pauseButton.getStyleClass().add("player-control-button");
+        pauseButton.getStyleClass().add("pause-button");
         pauseButton.setOnAction(event -> pause());
-        Button nextButton = new Button(">>");
+        
+        Button nextButton = new Button("⏭");
+        nextButton.getStyleClass().add("player-control-button");
+        nextButton.getStyleClass().add("next-button");
         nextButton.setOnAction(event -> playNext());
-        Button stopButton = new Button("Stop");
+        
+        Button stopButton = new Button("⏹");
+        stopButton.getStyleClass().add("player-control-button");
+        stopButton.getStyleClass().add("stop-button");
         stopButton.setOnAction(event -> stop());
 
-        // HBox des contrôles
-        HBox actions = new HBox(10, prevButton, playButton, pauseButton, nextButton, stopButton);
+        // HBox des contrôles avec volume à côté
+        elapsedLabel.getStyleClass().add("time-label");
+        totalLabel.getStyleClass().add("time-label");
+        progressSlider.getStyleClass().add("progress-slider");
+        
+        HBox progressRow = new HBox(6, elapsedLabel, progressSlider, totalLabel);
+        progressSlider.setPrefWidth(75);
+        progressSlider.setMaxWidth(75);
+        progressSlider.setMinWidth(75);
+        HBox.setHgrow(progressSlider, Priority.NEVER);
+        progressRow.setAlignment(Pos.CENTER);
+
+        Label volumeLabel = new Label("Volume");
+        volumeLabel.getStyleClass().add("volume-label");
+        volumeSlider.getStyleClass().add("volume-slider");
+        
+        HBox actions = new HBox(6, prevButton, playButton, pauseButton, nextButton, stopButton);
         actions.setAlignment(Pos.CENTER_LEFT);
+        
+        HBox controlsRow = new HBox(8, actions, volumeLabel, volumeSlider);
+        controlsRow.setAlignment(Pos.CENTER);
+        HBox.setHgrow(volumeSlider, Priority.NEVER);
+        volumeSlider.setPrefWidth(75);
+        volumeSlider.setMaxWidth(75);
+        volumeSlider.setMinWidth(75);
+        
+        // Centrer le titre aussi
+        nowPlaying.setAlignment(Pos.CENTER);
 
-        HBox progressRow = new HBox(10, elapsedLabel, progressSlider, totalLabel);
-        HBox.setHgrow(progressSlider, Priority.ALWAYS);
-        progressRow.setAlignment(Pos.CENTER_LEFT);
-
-        HBox volumeRow = new HBox(10, new Label("Volume"), volumeSlider);
-        volumeRow.setAlignment(Pos.CENTER_LEFT);
-
-        getChildren().addAll(nowPlaying, progressRow, actions, volumeRow);
+        getChildren().addAll(nowPlaying, progressRow, controlsRow);
     }
 
 

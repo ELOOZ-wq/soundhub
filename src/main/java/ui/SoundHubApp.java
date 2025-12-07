@@ -1,7 +1,9 @@
 package ui;
 
 import javafx.application.Application;
+import javafx.geometry.Rectangle2D;
 import javafx.scene.Scene;
+import javafx.stage.Screen;
 import javafx.stage.Stage;
 import model.User;
 import ui.views.DashboardView;
@@ -18,22 +20,42 @@ public class SoundHubApp extends Application {
     public void start(Stage stage) {
         this.primaryStage = stage;
         stage.setTitle("SoundHub");
+        stage.setResizable(true);
         showLoginView();
+        stage.centerOnScreen();
         stage.show();
     }
 
     private void showLoginView() {
         LoginView view = new LoginView(controller, this::showDashboardView);
-        Scene scene = new Scene(view, 1100, 700);
+        
+        // Calculer la taille adaptée à l'écran
+        Rectangle2D screenBounds = Screen.getPrimary().getVisualBounds();
+        double width = Math.min(1100, screenBounds.getWidth() * 0.8);
+        double height = Math.min(700, screenBounds.getHeight() * 0.8);
+        
+        Scene scene = new Scene(view, width, height);
         applyTheme(scene);
         primaryStage.setScene(scene);
+        primaryStage.setMinWidth(800);
+        primaryStage.setMinHeight(600);
+        primaryStage.centerOnScreen();
     }
 
     private void showDashboardView(User user) {
         DashboardView dashboardView = new DashboardView(controller, user, this::showLoginView);
-        Scene scene = new Scene(dashboardView, 1380, 860);
+        
+        // Calculer la taille adaptée à l'écran
+        Rectangle2D screenBounds = Screen.getPrimary().getVisualBounds();
+        double width = Math.min(1380, screenBounds.getWidth() * 0.9);
+        double height = Math.min(860, screenBounds.getHeight() * 0.9);
+        
+        Scene scene = new Scene(dashboardView, width, height);
         applyTheme(scene);
         primaryStage.setScene(scene);
+        primaryStage.setMinWidth(1000);
+        primaryStage.setMinHeight(700);
+        primaryStage.centerOnScreen();
     }
 
     private void applyTheme(Scene scene) {
