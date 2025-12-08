@@ -308,18 +308,58 @@
     -fx-background-color: rgba(99, 102, 241, 0.3);
 }
 
+
 .table-view {
     -fx-background-color: #252535;
     -fx-background-radius: 18;
     -fx-border-color: #6366f1;
     -fx-border-width: 2;
     -fx-border-radius: 18;
+    -fx-control-inner-background: #252535;
+    /* On ajoute un padding pour éviter que le contenu ne touche la bordure arrondie */
+    -fx-padding: 0;
 }
 
-.table-view .column-header {
+/* --- CORRECTION DES ANGLES --- */
+
+/* 1. L'arrière-plan global des titres */
+.table-view .column-header-background {
     -fx-background-color: #2a2a3a;
+    /* Mathématique : Rayon externe (18) - Bordure (2) = 16 */
+    -fx-background-radius: 16 16 0 0;
+    -fx-background-insets: 0 0 0 0;
+}
+
+/* 2. Le "Filler" (zone vide à droite) */
+.table-view .filler {
+    -fx-background-color: #2a2a3a;
+    /* On arrondit le coin haut-droit pour matcher */
+    -fx-background-radius: 0 16 0 0;
+    -fx-background-insets: 0 0 0 0;
+}
+
+/* 3. Les titres individuels -> DOIVENT ÊTRE TRANSPARENTS */
+.table-view .column-header {
+    /* IMPORTANT : Transparent pour laisser voir l'arrondi du background derrière */
+    -fx-background-color: transparent;
+    -fx-border-color: transparent transparent #6366f1 transparent;
+    -fx-border-width: 0 0 1 0;
+}
+
+.table-view .column-header .label {
     -fx-text-fill: #ffffff;
     -fx-font-weight: 600;
+}
+
+/* --- LE RESTE EST BON (CELLULES BLANCHES) --- */
+
+.table-view .table-cell {
+    -fx-text-fill: #ffffff;
+    -fx-alignment: CENTER_LEFT;
+}
+
+.table-view .table-cell .text {
+    -fx-fill: #ffffff;
 }
 
 .table-view .table-row-cell {
@@ -327,15 +367,24 @@
     -fx-text-fill: #ffffff;
 }
 
-.table-view .table-row-cell:selected {
+.table-view .table-row-cell:filled:hover {
+    -fx-background-color: rgba(99, 102, 241, 0.3);
+}
+
+.table-view .table-row-cell:filled:selected {
     -fx-background-color: #6366f1;
     -fx-text-fill: #ffffff;
 }
 
-.table-view .table-row-cell:hover {
-    -fx-background-color: rgba(99, 102, 241, 0.3);
+.table-view .table-row-cell:filled:selected .table-cell,
+.table-view .table-row-cell:filled:selected .table-cell .text {
+    -fx-fill: #ffffff;
+    -fx-text-fill: #ffffff;
 }
 
+.table-view .placeholder .label {
+    -fx-text-fill: #8b8b9b;
+}
 .mini-player {
     -fx-background-color: #1a1a25;
     -fx-background-radius: 0;
@@ -343,6 +392,8 @@
     -fx-border-width: 2 0 0 0;
     -fx-padding: 8;
 }
+
+
 
 .mini-player .now-playing {
     -fx-font-size: 12px;
