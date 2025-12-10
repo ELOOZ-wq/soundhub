@@ -7,6 +7,7 @@ import javafx.scene.control.Label;
 import javafx.scene.control.Slider;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
+import javafx.scene.layout.Region;
 import javafx.scene.layout.VBox;
 import javafx.scene.media.Media;
 import javafx.scene.media.MediaPlayer;
@@ -101,32 +102,48 @@ public class MiniPlayer extends VBox {
         elapsedLabel.getStyleClass().add("time-label");
         totalLabel.getStyleClass().add("time-label");
         progressSlider.getStyleClass().add("progress-slider");
-        
-        HBox progressRow = new HBox(6, elapsedLabel, progressSlider, totalLabel);
-        progressSlider.setPrefWidth(75);
-        progressSlider.setMaxWidth(75);
-        progressSlider.setMinWidth(75);
+        progressSlider.setPrefWidth(150);
+        progressSlider.setMaxWidth(150);
+        progressSlider.setMinWidth(150);
         HBox.setHgrow(progressSlider, Priority.NEVER);
-        progressRow.setAlignment(Pos.CENTER);
-
-        Label volumeLabel = new Label("Volume");
-        volumeLabel.getStyleClass().add("volume-label");
+        
+        Label progressLabel = new Label("▶ Lecture");
+        progressLabel.getStyleClass().add("bar-label");
+        progressLabel.getStyleClass().add("progress-bar-label");
+        VBox progressContainer = new VBox(4);
+        progressContainer.getChildren().add(progressLabel);
+        HBox progressBarRow = new HBox(6, elapsedLabel, progressSlider, totalLabel);
+        progressBarRow.setAlignment(Pos.CENTER_LEFT);
+        progressContainer.getChildren().add(progressBarRow);
+        progressContainer.setAlignment(Pos.CENTER_LEFT);
+        
+        Label volumeLabel = new Label("🔊 Volume");
+        volumeLabel.getStyleClass().add("bar-label");
+        volumeLabel.getStyleClass().add("volume-bar-label");
         volumeSlider.getStyleClass().add("volume-slider");
+        volumeSlider.setPrefWidth(100);
+        volumeSlider.setMaxWidth(100);
+        volumeSlider.setMinWidth(100);
+        HBox.setHgrow(volumeSlider, Priority.NEVER);
+        
+        VBox volumeContainer = new VBox(4);
+        volumeContainer.getChildren().add(volumeLabel);
+        HBox volumeBarRow = new HBox(6, volumeSlider);
+        volumeBarRow.setAlignment(Pos.CENTER_RIGHT);
+        volumeContainer.getChildren().add(volumeBarRow);
+        volumeContainer.setAlignment(Pos.CENTER_RIGHT);
+        
+        HBox barsRow = new HBox(20, progressContainer, new Region(), volumeContainer);
+        barsRow.setAlignment(Pos.CENTER);
+        HBox.setHgrow(barsRow.getChildren().get(1), Priority.ALWAYS);
         
         HBox actions = new HBox(6, prevButton, playButton, pauseButton, nextButton, stopButton);
-        actions.setAlignment(Pos.CENTER_LEFT);
-        
-        HBox controlsRow = new HBox(8, actions, volumeLabel, volumeSlider);
-        controlsRow.setAlignment(Pos.CENTER);
-        HBox.setHgrow(volumeSlider, Priority.NEVER);
-        volumeSlider.setPrefWidth(75);
-        volumeSlider.setMaxWidth(75);
-        volumeSlider.setMinWidth(75);
+        actions.setAlignment(Pos.CENTER);
         
         // Centrer le titre aussi
         nowPlaying.setAlignment(Pos.CENTER);
 
-        getChildren().addAll(nowPlaying, progressRow, controlsRow);
+        getChildren().addAll(nowPlaying, barsRow, actions);
     }
 
 

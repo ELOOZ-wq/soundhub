@@ -408,6 +408,24 @@
     -fx-font-weight: 500;
 }
 
+.bar-label {
+    -fx-text-fill: #ffffff;
+    -fx-font-size: 12px;
+    -fx-font-weight: 700;
+}
+
+.progress-bar-label {
+    -fx-text-fill: #8b5cf6;
+    -fx-font-size: 12px;
+    -fx-font-weight: 700;
+}
+
+.volume-bar-label {
+    -fx-text-fill: #8b5cf6;
+    -fx-font-size: 12px;
+    -fx-font-weight: 700;
+}
+
 .volume-label {
     -fx-text-fill: #ffffff;
     -fx-font-size: 11px;
@@ -514,18 +532,18 @@
 }
 
 .mini-player .slider {
-    -fx-pref-height: 4;
+    -fx-pref-height: 6;
 }
 
 .mini-player .slider .track {
     -fx-background-color: #2a2a3a;
     -fx-background-radius: 999;
-    -fx-pref-height: 4;
+    -fx-pref-height: 6;
 }
 
 .mini-player .slider .thumb {
-    -fx-pref-width: 10;
-    -fx-pref-height: 10;
+    -fx-pref-width: 14;
+    -fx-pref-height: 14;
     -fx-background-color: #8b5cf6;
     -fx-background-radius: 50%;
 }
